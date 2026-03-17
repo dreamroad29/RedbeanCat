@@ -1,0 +1,27 @@
+# Binaries for .NET projects
+bin/
+obj/
+publish/
+*.userprefs
+*.suo
+*.user
+
+# Visual Studio
+.vs/
+*.csproj.user
+
+# NuGet packages
+packages/
+
+# User-specific files
+*.userosconfig
+*.userprefs
+*.vssettings
+
+# Environment variables
+.env
+.env.local
+
+# IDE settings
+.idea/
+.vscode/
