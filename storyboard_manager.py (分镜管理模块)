@@ -1,0 +1,38 @@
+"""
+RedbeanCat v2.0 - 分镜管理模块
+开发者：红豆猫工作室
+"""
+from pathlib import Path
+from database import AssetDatabase, Storyboard
+
+
+class StoryboardManager:
+    """分镜管理类"""
+    
+    def __init__(self, db_path: Path):
+        self.db_path = db_path
+        self.db = AssetDatabase(db_path)
+        
+    def add_storyboard(self, script_id: str, scene_number: int, shot_number: int, 
+                      duration: float, camera_angle: str, action: str, dialogue: str):
+        """添加分镜"""
+        storyboard_id = f"sb_{script_id}_{scene_number}_{shot_number}"
+        storyboard = Storyboard(
+            id=storyboard_id,
+            script_id=script_id,
+            scene_number=scene_number,
+            shot_number=shot_number,
+            duration=duration,
+            camera_angle=camera_angle,
+            action=action,
+            dialogue=dialogue
+        )
+        self.db.add_storyboard(storyboard)
+        
+    def export_storyboard(self, path: Path):
+        """导出分镜"""
+        data = {
+            "storyboards": [sb.to_dict() for sb in self.db.get_storyboards()]
+        }
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
