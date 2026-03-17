@@ -1,0 +1,44 @@
+"""
+RedbeanCat v2.0 - 角色库管理模块
+开发者：红豆猫工作室
+"""
+from pathlib import Path
+from database import AssetDatabase, Character
+
+
+class CharacterLibrary:
+    """角色库管理类"""
+    
+    def __init__(self, db_path: Path):
+        self.db_path = db_path
+        self.db = AssetDatabase(db_path)
+        
+    def add_character(self, name: str, hair_style: str, outfits: list[str], 
+                     expressions: list[str]):
+        """添加角色"""
+        char_id = f"char_{len(self.db.get_characters()) + 1}"
+        character = Character(
+            id=char_id,
+            name=name,
+            hair_style=hair_style,
+            outfits=outfits,
+            expressions=expressions
+        )
+        self.db.add_character(character)
+        
+    def save_character_image(self, char_id: str, image_type: str, image_path: str):
+        """保存角色图片路径"""
+        for char in self.db.get_characters():
+            if char["id"] == char_id:
+                if "images" not in char:
+                    char["images"] = {}
+                char["images"][image_type] = image_path
+                break
+                
+    def export_characters(self, path: Path):
+        """导出角色"""
+        data = {
+            "characters": [c.to_dict() for c in self.db.get_characters()]
+        }
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
