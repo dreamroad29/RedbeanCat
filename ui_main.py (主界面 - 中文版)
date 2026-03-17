@@ -1,0 +1,634 @@
+"""
+RedbeanCat v2.0 - 主界面 (中文版)
+开发者：红豆猫工作室
+基于 PyQt6 的现代化UI (三栏布局)
+支持：OpenAI API调用 + 本地API接入
+"""
+import sys
+from pathlib import Path
+from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, 
+                             QVBoxLayout, QHBoxLayout, QTableWidget, 
+                             QTableWidgetItem, QPushButton, QLabel,
+                             QLineEdit, QComboBox, QMessageBox, QFileDialog,
+                             QGroupBox, QSplitter)
+from PyQt6.QtCore import Qt
+
+
+class AssetManagerApp(QMainWindow):
+    """资产管理器主窗口 v2.0 - RedbeanCat"""
+    
+    def __init__(self):
+        super().__init__()
+        self.db_path = Path("soulens_assets")
+        self.db = AssetDatabase(self.db_path)
+        
+        # 初始化库
+        from script_manager import ScriptManager
+        from storyboard_manager import StoryboardManager
+        from character_lib import CharacterLibrary
+        from scene_lib import SceneLibrary
+        self.script_mgr = ScriptManager(self.db_path)
+        self.storyboard_mgr = StoryboardManager(self.db_path)
+        self.char_lib = CharacterLibrary(self.db_path)
+        self.scene_lib = SceneLibrary(self.db_path)
+        
+        # API配置
+        self.api_url = ""
+        self.api_key = ""
+        
+        self.init_ui()
+        
+    def init_ui(self):
+        """初始化界面 - 三栏布局"""
+        self.setWindowTitle("🐱 RedbeanCat (红豆猫) v2.0")
+        self.resize(1600, 900)
+        
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
+        
+        main_layout = QVBoxLayout(central_widget)
+        
+        # 顶部标题栏
+        title_layout = QHBoxLayout()
+        title_label = QLabel("🐱 RedbeanCat (红豆猫) v2.0")
+        title_label.setStyleSheet("font-size: 20px; font-weight: bold; color: #E74C3C;")
+        title_layout.addWidget(title_label)
+        
+        # API配置按钮
+        api_btn = QPushButton("⚙️ API配置")
+        api_btn.clicked.connect(self.show_api_config)
+        title_layout.addWidget(api_btn)
+        
+        main_layout.addLayout(title_layout)
+        
+        # 主内容区域 - 三栏布局
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+        
+        # 第一栏：剧本管理 (最宽)
+        script_widget = self.create_script_panel()
+        splitter.addWidget(script_widget, stretch=3)
+        
+        # 第二栏：分镜管理
+        storyboard_widget = self.create_storyboard_panel()
+        splitter.addWidget(storyboard_widget, stretch=2)
+        
+        # 第三栏：角色&场景库 (合并)
+        assets_widget = self.create_assets_panel()
+        splitter.addWidget(assets_widget, stretch=1)
+        
+        main_layout.addWidget(splitter)
+        
+    def show_api_config(self):
+        """显示API配置对话框"""
+        dialog = QDialog(self)
+        dialog.setWindowTitle("🔧 API配置")
+        dialog.resize(500, 400)
+        
+        layout = QVBoxLayout(dialog)
+        
+        # OpenAI API配置
+        group1 = QGroupBox("🌐 OpenAI API配置")
+        group1_layout = QVBoxLayout(group1)
+        
+        self.openai_url_input = QLineEdit()
+        self.openai_url_input.setPlaceholderText("https://api.openai.com/v1/images/generations")
+        group1_layout.addWidget(QLabel("API地址:"))
+        group1_layout.addWidget(self.openai_url_input)
+        
+        self.openai_key_input = QLineEdit()
+        self.openai_key_input.setPlaceholderText("sk-xxx")
+        self.openai_key_input.setEchoMode(QLineEdit.EchoMode.Password)
+        group1_layout.addWidget(QLabel("API密钥:"))
+        group1_layout.addWidget(self.openai_key_input)
+        
+        save_openai_btn = QPushButton("💾 保存OpenAI配置")
+        save_openai_btn.clicked.connect(self.save_openai_config)
+        group1_layout.addWidget(save_openai_btn)
+        
+        # Local API配置
+        group2 = QGroupBox("🖥️ 本地API配置 (Ollama/LocalAI)")
+        group2_layout = QVBoxLayout(group2)
+        
+        self.local_url_input = QLineEdit()
+        self.local_url_input.setPlaceholderText("http://localhost:11434/api/generate")
+        group2_layout.addWidget(QLabel("本地API地址:"))
+        group2_layout.addWidget(self.local_url_input)
+        
+        save_local_btn = QPushButton("💾 保存本地配置")
+        save_local_btn.clicked.connect(self.save_local_config)
+        group2_layout.addWidget(save_local_btn)
+        
+        # 测试按钮
+        test_btn = QPushButton("🧪 测试API连接")
+        test_btn.clicked.connect(self.test_api_connection)
+        layout.addWidget(test_btn)
+        
+        layout.addWidget(group1)
+        layout.addWidget(group2)
+        
+    def save_openai_config(self):
+        """保存OpenAI配置"""
+        self.api_url = self.openai_url_input.text().strip()
+        self.api_key = self.openai_key_input.text().strip()
+        QMessageBox.information(self, "成功", f"OpenAI API配置已保存\n地址：{self.api_url}")
+        
+    def save_local_config(self):
+        """保存本地API配置"""
+        self.local_api_url = self.local_url_input.text().strip()
+        QMessageBox.information(self, "成功", f"本地API配置已保存\n地址：{self.local_api_url}")
+        
+    def test_api_connection(self):
+        """测试API连接"""
+        from comfyui_integration import ComfyUIWorkflow
+        workflow = ComfyUIWorkflow(self.api_url)
+        
+        try:
+            response = requests.get(self.api_url, timeout=5)
+            if response.status_code == 200:
+                QMessageBox.information(self, "成功", f"✅ API连接正常\n响应：{response.text[:100]}")
+            else:
+                QMessageBox.warning(self, "警告", f"❌ API返回错误：{response.status_code}")
+        except Exception as e:
+            QMessageBox.critical(self, "错误", f"❌ 连接失败：{str(e)}")
+            
+    def create_script_panel(self):
+        """创建剧本管理面板"""
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        
+        # 标题
+        title = QLabel("📖 剧本管理 (Save the Cat结构)")
+        title.setStyleSheet("font-size: 18px; font-weight: bold;")
+        layout.addWidget(title)
+        
+        # 表单区域
+        form_layout = QFormLayout()
+        
+        self.script_title_input = QLineEdit()
+        self.script_logline_input = QLineEdit()
+        self.script_genre_input = QLineEdit()
+        self.script_tone_input = QLineEdit()
+        self.script_themes_input = QLineEdit()
+        
+        form_layout.addRow("剧本标题:", self.script_title_input)
+        form_layout.addRow("一句话梗概:", self.script_logline_input)
+        form_layout.addRow("类型:", self.script_genre_input)
+        form_layout.addRow("基调:", self.script_tone_input)
+        form_layout.addRow("主题 (逗号分隔):", self.script_themes_input)
+        
+        layout.addLayout(form_layout)
+        
+        # 按钮区域
+        btn_layout = QHBoxLayout()
+        
+        add_script_btn = QPushButton("➕ 添加剧本")
+        add_script_btn.clicked.connect(self.add_script)
+        btn_layout.addWidget(add_script_btn)
+        
+        save_script_btn = QPushButton("💾 保存剧本")
+        save_script_btn.clicked.connect(self.save_scripts)
+        btn_layout.addWidget(save_script_btn)
+        
+        layout.addLayout(btn_layout)
+        
+        # 表格
+        self.script_table = QTableWidget()
+        self.script_table.setColumnCount(5)
+        self.script_table.setHorizontalHeaderLabels(["ID", "标题", "梗概", "类型", "基调"])
+        self.script_table.horizontalHeader().setSectionResizeMode(0, Qt.ResizeMode.Stretch)
+        
+        layout.addWidget(self.script_table)
+        
+        return widget
+        
+    def create_storyboard_panel(self):
+        """创建分镜管理面板"""
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        
+        # 标题
+        title = QLabel("🎬 分镜管理")
+        title.setStyleSheet("font-size: 18px; font-weight: bold;")
+        layout.addWidget(title)
+        
+        # 表单区域
+        form_layout = QFormLayout()
+        
+        self.shot_script_input = QLineEdit()
+        self.shot_scene_input = QLineEdit()
+        self.shot_shot_input = QLineEdit()
+        self.shot_duration_input = QLineEdit()
+        self.shot_angle_input = QLineEdit()
+        self.shot_action_input = QLineEdit()
+        self.shot_dialogue_input = QLineEdit()
+        self.shot_notes_input = QLineEdit()
+        
+        form_layout.addRow("关联剧本ID:", self.shot_script_input)
+        form_layout.addRow("场景编号:", self.shot_scene_input)
+        form_layout.addRow("镜头编号:", self.shot_shot_input)
+        form_layout.addRow("时长(秒):", self.shot_duration_input)
+        form_layout.addRow("镜头角度:", self.shot_angle_input)
+        form_layout.addRow("动作描述:", self.shot_action_input)
+        form_layout.addRow("对白:", self.shot_dialogue_input)
+        form_layout.addRow("备注:", self.shot_notes_input)
+        
+        layout.addLayout(form_layout)
+        
+        # 按钮区域
+        btn_layout = QHBoxLayout()
+        
+        add_shot_btn = QPushButton("➕ 添加分镜")
+        add_shot_btn.clicked.connect(self.add_shot)
+        btn_layout.addWidget(add_shot_btn)
+        
+        save_shots_btn = QPushButton("💾 保存分镜")
+        save_shots_btn.clicked.connect(self.save_storyboards)
+        btn_layout.addWidget(save_shots_btn)
+        
+        # API生成按钮
+        generate_btn = QPushButton("🎨 AI生成图片")
+        generate_btn.clicked.connect(self.generate_image)
+        btn_layout.addWidget(generate_btn)
+        
+        layout.addLayout(btn_layout)
+        
+        # 表格
+        self.storyboard_table = QTableWidget()
+        self.storyboard_table.setColumnCount(8)
+        self.storyboard_table.setHorizontalHeaderLabels(["ID", "场景", "镜头", "时长", "角度", "动作", "对白", "备注"])
+        self.storyboard_table.horizontalHeader().setSectionResizeMode(0, Qt.ResizeMode.Stretch)
+        
+        layout.addWidget(self.storyboard_table)
+        
+        return widget
+        
+    def create_assets_panel(self):
+        """创建角色&场景库面板"""
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        
+        # 标题
+        title = QLabel("🎭 资产库管理 (角色+场景)")
+        title.setStyleSheet("font-size: 18px; font-weight: bold;")
+        layout.addWidget(title)
+        
+        # 左右分栏
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+        
+        # 左侧：角色库
+        char_widget = self.create_character_panel()
+        splitter.addWidget(char_widget, stretch=1)
+        
+        # 右侧：场景库
+        scene_widget = self.create_scene_panel()
+        splitter.addWidget(scene_widget, stretch=1)
+        
+        layout.addWidget(splitter)
+        
+        return widget
+        
+    def create_character_panel(self):
+        """创建角色库面板"""
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        
+        # 标题
+        title = QLabel("👤 角色库")
+        title.setStyleSheet("font-size: 16px; font-weight: bold;")
+        layout.addWidget(title)
+        
+        # 表单
+        form_layout = QFormLayout()
+        self.char_name_input = QLineEdit()
+        self.char_hair_input = QLineEdit()
+        self.char_outfits_input = QLineEdit()
+        self.char_expressions_input = QLineEdit()
+        
+        form_layout.addRow("角色名称:", self.char_name_input)
+        form_layout.addRow("发型:", self.char_hair_input)
+        form_layout.addRow("服装 (逗号分隔):", self.char_outfits_input)
+        form_layout.addRow("表情 (逗号分隔):", self.char_expressions_input)
+        
+        layout.addLayout(form_layout)
+        
+        # 图片路径管理
+        image_group = QGroupBox("🖼️ 图片路径管理")
+        image_layout = QVBoxLayout(image_group)
+        
+        self.char_image_type_input = QLineEdit()
+        self.char_image_path_input = QLineEdit()
+        self.char_save_image_btn = QPushButton("💾 保存路径")
+        
+        image_layout.addWidget(QLabel("图片类型 (front/side/back):"))
+        image_layout.addWidget(self.char_image_type_input)
+        image_layout.addWidget(self.char_image_path_input)
+        image_layout.addWidget(self.char_save_image_btn)
+        
+        layout.addWidget(image_group)
+        
+        # 列表表格
+        self.char_table = QTableWidget()
+        self.char_table.setColumnCount(5)
+        self.char_table.setHorizontalHeaderLabels(["ID", "名称", "发型", "服装", "表情"])
+        self.char_table.horizontalHeader().setSectionResizeMode(0, Qt.ResizeMode.Stretch)
+        
+        layout.addWidget(self.char_table)
+        
+        # 按钮
+        add_char_btn = QPushButton("➕ 添加角色")
+        add_char_btn.clicked.connect(self.add_character)
+        layout.addWidget(add_char_btn)
+        
+        export_char_btn = QPushButton("💾 导出角色")
+        export_char_btn.clicked.connect(self.export_characters)
+        layout.addWidget(export_char_btn)
+        
+        return widget
+        
+    def create_scene_panel(self):
+        """创建场景库面板"""
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        
+        # 标题
+        title = QLabel("🌅 场景库")
+        title.setStyleSheet("font-size: 16px; font-weight: bold;")
+        layout.addWidget(title)
+        
+        # 表单
+        form_layout = QFormLayout()
+        self.scene_name_input = QLineEdit()
+        self.scene_bg_input = QLineEdit()
+        self.scene_lighting_input = QLineEdit()
+        self.scene_props_input = QLineEdit()
+        
+        form_layout.addRow("场景名称:", self.scene_name_input)
+        form_layout.addRow("背景描述:", self.scene_bg_input)
+        form_layout.addRow("灯光:", self.scene_lighting_input)
+        form_layout.addRow("道具 (逗号分隔):", self.scene_props_input)
+        
+        layout.addLayout(form_layout)
+        
+        # 图片路径管理
+        image_group = QGroupBox("🖼️ 图片路径管理")
+        image_layout = QVBoxLayout(image_group)
+        
+        self.scene_image_type_input = QLineEdit()
+        self.scene_image_path_input = QLineEdit()
+        self.scene_save_image_btn = QPushButton("💾 保存路径")
+        
+        image_layout.addWidget(QLabel("图片类型 (day/night/rain):"))
+        image_layout.addWidget(self.scene_image_type_input)
+        image_layout.addWidget(self.scene_image_path_input)
+        image_layout.addWidget(self.scene_save_image_btn)
+        
+        layout.addWidget(image_group)
+        
+        # 列表表格
+        self.scene_table = QTableWidget()
+        self.scene_table.setColumnCount(5)
+        self.scene_table.setHorizontalHeaderLabels(["ID", "名称", "背景", "灯光", "道具"])
+        self.scene_table.horizontalHeader().setSectionResizeMode(0, Qt.ResizeMode.Stretch)
+        
+        layout.addWidget(self.scene_table)
+        
+        # 按钮
+        add_scene_btn = QPushButton("➕ 添加场景")
+        add_scene_btn.clicked.connect(self.add_scene)
+        layout.addWidget(add_scene_btn)
+        
+        export_scene_btn = QPushButton("💾 导出场景")
+        export_scene_btn.clicked.connect(self.export_scenes)
+        layout.addWidget(export_scene_btn)
+        
+        return widget
+        
+    def add_script(self):
+        """添加剧本"""
+        title = self.script_title_input.text().strip()
+        if not title:
+            QMessageBox.warning(self, "警告", "请输入剧本标题")
+            return
+            
+        logline = self.script_logline_input.text().strip()
+        genre = self.script_genre_input.text().strip()
+        tone = self.script_tone_input.text().strip()
+        themes = [t.strip() for t in self.script_themes_input.text().split(",") if t.strip()]
+        
+        self.script_mgr.add_script(title, logline, genre, tone, themes)
+        self.refresh_tables()
+        
+    def add_shot(self):
+        """添加分镜"""
+        script_id = self.shot_script_input.text().strip()
+        scene_num = int(self.shot_scene_input.text().strip()) if self.shot_scene_input.text().strip() else 1
+        shot_num = int(self.shot_shot_input.text().strip()) if self.shot_shot_input.text().strip() else 1
+        duration = float(self.shot_duration_input.text().strip()) if self.shot_duration_input.text().strip() else 5.0
+        
+        if not script_id:
+            QMessageBox.warning(self, "警告", "请输入关联剧本ID")
+            return
+            
+        self.storyboard_mgr.add_storyboard(
+            script_id=script_id,
+            scene_number=scene_num,
+            shot_number=shot_num,
+            duration=duration,
+            camera_angle=self.shot_angle_input.text().strip(),
+            action=self.shot_action_input.text().strip(),
+            dialogue=self.shot_dialogue_input.text().strip()
+        )
+        self.refresh_tables()
+        
+    def add_character(self):
+        """添加角色"""
+        name = self.char_name_input.text().strip()
+        if not name:
+            QMessageBox.warning(self, "警告", "请输入角色名称")
+            return
+            
+        hair = self.char_hair_input.text().strip()
+        outfits = [o.strip() for o in self.char_outfits_input.text().split(",") if o.strip()]
+        expressions = [e.strip() for e in self.char_expressions_input.text().split(",") if e.strip()]
+        
+        self.char_lib.add_character(name, hair, outfits, expressions)
+        self.refresh_tables()
+        
+    def add_scene(self):
+        """添加场景"""
+        name = self.scene_name_input.text().strip()
+        if not name:
+            QMessageBox.warning(self, "警告", "请输入场景名称")
+            return
+            
+        bg = self.scene_bg_input.text().strip()
+        lighting = self.scene_lighting_input.text().strip()
+        props = [p.strip() for p in self.scene_props_input.text().split(",") if p.strip()]
+        
+        self.scene_lib.add_scene(name, bg, lighting, props)
+        self.refresh_tables()
+        
+    def refresh_tables(self):
+        """刷新所有表格"""
+        # 刷新剧本表格
+        self.script_table.setRowCount(0)
+        for script in self.script_mgr.db.get_scripts():
+            row = self.script_table.rowCount()
+            self.script_table.insertRow(row)
+            self.script_table.setItem(row, 0, QTableWidgetItem(script["id"]))
+            self.script_table.setItem(row, 1, QTableWidgetItem(script["title"]))
+            self.script_table.setItem(row, 2, QTableWidgetItem(script["logline"]))
+            self.script_table.setItem(row, 3, QTableWidgetItem(script.get("genre", "")))
+            self.script_table.setItem(row, 4, QTableWidgetItem(script.get("tone", "")))
+            
+        # 刷新分镜表格
+        self.storyboard_table.setRowCount(0)
+        for sb in self.storyboard_mgr.db.get_storyboards():
+            row = self.storyboard_table.rowCount()
+            self.storyboard_table.insertRow(row)
+            self.storyboard_table.setItem(row, 0, QTableWidgetItem(sb["id"]))
+            self.storyboard_table.setItem(row, 1, QTableWidgetItem(f"场景{sb['scene_number']}"))
+            self.storyboard_table.setItem(row, 2, QTableWidgetItem(str(sb["shot_number"])))
+            self.storyboard_table.setItem(row, 3, QTableWidgetItem(str(sb["duration"])))
+            self.storyboard_table.setItem(row, 4, QTableWidgetItem(sb.get("camera_angle", "")))
+            self.storyboard_table.setItem(row, 5, QTableWidgetItem(sb.get("action", "")))
+            self.storyboard_table.setItem(row, 6, QTableWidgetItem(sb.get("dialogue", "")))
+            self.storyboard_table.setItem(row, 7, QTableWidgetItem(sb.get("notes", "")))
+            
+        # 刷新角色表格
+        self.char_table.setRowCount(0)
+        for char in self.char_lib.db.get_characters():
+            row = self.char_table.rowCount()
+            self.char_table.insertRow(row)
+            self.char_table.setItem(row, 0, QTableWidgetItem(char["id"]))
+            self.char_table.setItem(row, 1, QTableWidgetItem(char["name"]))
+            self.char_table.setItem(row, 2, QTableWidgetItem(char["hair_style"]))
+            self.char_table.setItem(row, 3, QTableWidgetItem(", ".join(char.get("outfits", []))))
+            self.char_table.setItem(row, 4, QTableWidgetItem(", ".join(char.get("expressions", []))))
+            
+        # 刷新场景表格
+        self.scene_table.setRowCount(0)
+        for scene in self.scene_lib.db.get_scenes():
+            row = self.scene_table.rowCount()
+            self.scene_table.insertRow(row)
+            self.scene_table.setItem(row, 0, QTableWidgetItem(scene["id"]))
+            self.scene_table.setItem(row, 1, QTableWidgetItem(scene["name"]))
+            self.scene_table.setItem(row, 2, QTableWidgetItem(scene["background"]))
+            self.scene_table.setItem(row, 3, QTableWidgetItem(scene["lighting"]))
+            self.scene_table.setItem(row, 4, QTableWidgetItem(", ".join(scene.get("props", []))))
+            
+    def save_scripts(self):
+        """保存剧本"""
+        path, _ = QFileDialog.getSaveFileName(self, "保存剧本", "", "JSON Files (*.json)")
+        if path:
+            self.script_mgr.save_script(path)
+            QMessageBox.information(self, "成功", f"剧本已保存到：{path}")
+            
+    def save_storyboards(self):
+        """保存分镜"""
+        path, _ = QFileDialog.getSaveFileName(self, "保存分镜", "", "JSON Files (*.json)")
+        if path:
+            self.storyboard_mgr.export_storyboard(path)
+            QMessageBox.information(self, "成功", f"分镜已保存到：{path}")
+            
+    def export_characters(self):
+        """导出角色"""
+        path, _ = QFileDialog.getSaveFileName(self, "导出角色", "", "JSON Files (*.json)")
+        if path:
+            self.char_lib.export_characters(path)
+            QMessageBox.information(self, "成功", f"角色已保存到：{path}")
+            
+    def export_scenes(self):
+        """导出场景"""
+        path, _ = QFileDialog.getSaveFileName(self, "导出场景", "", "JSON Files (*.json)")
+        if path:
+            self.scene_lib.export_scenes(path)
+            QMessageBox.information(self, "成功", f"场景已保存到：{path}")
+            
+    def save_character_image(self):
+        """保存角色图片路径"""
+        char_id = self.char_table.item(self.char_table.currentRow(), 0).text()
+        image_type = self.char_image_type_input.text().strip()
+        image_path = self.char_image_path_input.text().strip()
+        
+        if char_id and image_type and image_path:
+            from character_lib import CharacterLibrary
+            self.char_lib.save_character_image(char_id, image_type, image_path)
+            QMessageBox.information(self, "成功", f"角色图片路径已保存")
+            
+    def save_scene_image(self):
+        """保存场景图片路径"""
+        scene_id = self.scene_table.item(self.scene_table.currentRow(), 0).text()
+        image_type = self.scene_image_type_input.text().strip()
+        image_path = self.scene_image_path_input.text().strip()
+        
+        if scene_id and image_type and image_path:
+            from scene_lib import SceneLibrary
+            self.scene_lib.save_scene_image(scene_id, image_type, image_path)
+            QMessageBox.information(self, "成功", f"场景图片路径已保存")
+            
+    def export_production_pack(self):
+        """导出漫剧制作包"""
+        from batch_export import BatchExporter
+        exporter = BatchExporter(self.db_path)
+        
+        output_dir, _ = QFileDialog.getSaveFileName(
+            self, "导出漫剧制作包", "", "Production Pack (*.zip)"
+        )
+        
+        if output_dir:
+            # 创建临时目录
+            temp_dir = Path(output_dir).parent / f"temp_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            exporter.export_production_pack(temp_dir)
+            
+            # 压缩为ZIP (需安装zipfile)
+            import zipfile
+            with zipfile.ZipFile(output_dir, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                for file in temp_dir.rglob("*"):
+                    if file.is_file():
+                        zipf.write(file, arcname=file.relative_to(temp_dir))
+                        
+            # 清理临时目录
+            import shutil
+            shutil.rmtree(temp_dir)
+            
+            QMessageBox.information(self, "成功", f"漫剧制作包已导出到：{output_dir}")
+            
+    def generate_image(self):
+        """生成图片"""
+        from comfyui_integration import ComfyUIWorkflow
+        
+        # 获取当前选中的分镜
+        row = self.storyboard_table.currentRow()
+        if row < 0:
+            QMessageBox.warning(self, "警告", "请选择一个分镜")
+            return
+            
+        shot_id = self.storyboard_table.item(row, 0).text()
+        
+        # 生成提示词
+        workflow = ComfyUIWorkflow(self.api_url)
+        prompt = workflow.generate_flux_prompt(shot_id)
+        
+        if not prompt:
+            QMessageBox.warning(self, "警告", "无法生成提示词")
+            return
+            
+        # 保存提示词
+        output_path = Path("generated_images") / f"{shot_id}.png"
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        # 调用API
+        workflow.call_openai_api(prompt, output_path, self.api_url, self.api_key)
+
+
+class QDialog(QMainWindow):
+    """对话框基类"""
+    pass
+
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    window = AssetManagerApp()
+    window.show()
+    sys.exit(app.exec())
