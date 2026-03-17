@@ -1,0 +1,30 @@
+RedbeanCat/
+├── .github/
+│   ├── ISSUE_TEMPLATE/
+│   │   ├── bug_report.md
+│   │   └── feature_request.md
+│   └── PULL_REQUEST_TEMPLATE.md
+├── docs/
+│   ├── README.md
+│   ├── INSTALLATION.md
+│   ├── API_GUIDE.md
+│   └── CONTRIBUTING.md
+├── src/
+│   ├── RedbeanCat.csproj
+│   ├── Program.cs
+│   ├── MainForm.cs
+│   ├── MainForm.Designer.cs
+│   ├── DatabaseHelper.cs
+│   ├── ApiClient.cs
+│   ├── Script.cs
+│   ├── Storyboard.cs
+│   ├── Character.cs
+│   └── Scene.cs
+├── publish/
+│   └── RedbeanCat.exe
+├── assets/
+│   ├── icon.ico
+│   └── README.md
+├── LICENSE
+├── .gitignore
+└── CODE_OF_CONDUCT.md
