@@ -1,0 +1,48 @@
+"""
+RedbeanCat v2.0 - 主程序入口
+开发者：红豆猫工作室
+"""
+import sys
+from pathlib import Path
+from database import AssetDatabase
+from ui_main import main
+
+
+def main():
+    """主函数"""
+    # 初始化数据库
+    db_path = Path("soulens_assets")
+    db = AssetDatabase(db_path)
+    
+    # 初始化数据库
+    if not db.json_db.exists():
+        print("📦 首次运行，正在初始化数据库...")
+        db.init_database()
+        
+    # 创建快捷方式 (可选)
+    import os
+    from pathlib import Path
+    
+    exe_path = Path(__file__).parent / "dist" / "RedbeanCat.exe"
+    
+    if exe_path.exists():
+        desktop_path = Path(os.path.expandvars("~\\Desktop"))
+        shortcut_path = desktop_path / "RedbeanCat.lnk"
+        
+        try:
+            import winshell
+            winshell.create_shortcut(exe_path, str(shortcut_path))
+            print(f"✅ 桌面快捷方式已创建")
+        except Exception as e:
+            print(f"⚠️ 快捷方式创建失败：{str(e)}")
+            
+    # 运行界面
+    app = QApplication(sys.argv)
+    window = AssetManagerApp()
+    window.show()
+    
+    sys.exit(app.exec())
+
+
+if __name__ == "__main__":
+    main()
