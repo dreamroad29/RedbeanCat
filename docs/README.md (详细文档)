@@ -1,0 +1,41 @@
+# RedbeanCat v2.0 - 使用文档
+
+## 🎯 功能介绍
+
+- Save the Cat剧本结构管理
+- 分镜编号/时长/角度配置
+- 角色库 (发型/服装/表情)
+- 场景库 (背景/灯光/道具)
+- OpenAI API调用
+- 本地API接入 (Ollama/LocalAI)
+- JSON导入导出
+- 图片路径管理
+- 批量处理
+
+## 📦 安装说明
+
+### 方案A: 开发环境
+
+1. 运行 `build.bat` 编译项目
+2. EXE在 `publish\RedbeanCat.exe`
+
+### 方案B: 用户安装
+
+1. 先安装 .NET Runtime 8.0
+   https://dotnet.microsoft.com/download/dotnet/8.0
+2. 运行 `install.bat` 一键安装
+3. EXE自动启动
+
+## ⚙️ 系统要求
+
+- Windows 10/11
+- .NET Runtime 8.0+
+- 2GB 可用内存
+- 50MB 磁盘空间
+
+## 📞 开发者信息
+
+**红豆猫工作室**  
+版本：v2.0.0  
+日期：2026年  
+协议：MIT License
