@@ -1,0 +1,14 @@
+# RedbeanCat v2.0 - 安装指南
+
+## 前置要求
+
+- Windows 10/11
+- .NET Runtime 8.0+
+- Git（可选）
+
+## 快速安装
+
+### 方法1: 使用安装脚本
+
+```bash
+install.bat
