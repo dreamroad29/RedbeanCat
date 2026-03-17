@@ -1,0 +1,43 @@
+"""
+RedbeanCat v2.0 - 场景库管理模块
+开发者：红豆猫工作室
+"""
+from pathlib import Path
+from database import AssetDatabase, Scene
+
+
+class SceneLibrary:
+    """场景库管理类"""
+    
+    def __init__(self, db_path: Path):
+        self.db_path = db_path
+        self.db = AssetDatabase(db_path)
+        
+    def add_scene(self, name: str, background: str, lighting: str, props: list[str]):
+        """添加场景"""
+        scene_id = f"scene_{len(self.db.get_scenes()) + 1}"
+        scene = Scene(
+            id=scene_id,
+            name=name,
+            background=background,
+            lighting=lighting,
+            props=props
+        )
+        self.db.add_scene(scene)
+        
+    def save_scene_image(self, scene_id: str, image_type: str, image_path: str):
+        """保存场景图片路径"""
+        for scene in self.db.get_scenes():
+            if scene["id"] == scene_id:
+                if "images" not in scene:
+                    scene["images"] = {}
+                scene["images"][image_type] = image_path
+                break
+                
+    def export_scenes(self, path: Path):
+        """导出场景"""
+        data = {
+            "scenes": [s.to_dict() for s in self.db.get_scenes()]
+        }
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
