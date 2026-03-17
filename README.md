@@ -1,4 +1,4 @@
-# 🐱 RedbeanCat v2.0 - 漫剧资产管理工具
+# 🐱 RedbeanCat v1.0 - 漫剧资产管理工具
 
 <div align="center">
 
